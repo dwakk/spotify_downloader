@@ -19,7 +19,8 @@
       </div>
       <div id="result">
         <Result v-for="result in mainObj" :result="result" :download-spotify="downloadSpotify" :key="result.id"></Result>
-        <Result v-for="result in resultsArray" :result="result" :download-spotify="downloadSpotify" :key="result.id"></Result>
+        <Result v-for="result in resultsArray" :result="result" :download-spotify="downloadSpotify" :key="result.id">
+        </Result>
       </div>
       <div id="info">
         <Info :data="objInfo" :spotify="additionalLink"></Info>
@@ -33,6 +34,8 @@ import Result from './Result.vue';
 import Info from './Info.vue';
 import axios from 'axios';
 import { decodeString, getSpotifyId, timeConversion, type MainObject, type Image, type AlbumContent, type AlbumTrack, type AlbumInfo } from '@/utils';
+import { createToast } from "mosha-vue-toastify"
+import "mosha-vue-toastify/dist/style.css"
 
 export default {
   components: {
@@ -41,7 +44,7 @@ export default {
   },
   data() {
     return {
-      cat: null as null | string,
+      cat: null as null | "track" | "album" | "playlist",
       link: '',
       isInvalid: undefined as boolean | undefined,
       mainObj: [] as MainObject[],
@@ -50,6 +53,9 @@ export default {
       additionalLink: undefined as string | undefined,
       isDownloading: false
     };
+  },
+  setup() {
+
   },
   computed: {
     isValidLink(): boolean {
@@ -116,7 +122,17 @@ export default {
         const category = this.getCategory()
         const ii = getSpotifyId(this.link)
         if (!ii) throw new Error("No id found")
-        axios.defaults.baseURL = 'http://localhost:3000';
+        axios.defaults.baseURL = import.meta.env.VITE_APP_API_URL
+
+        const btn = document.getElementById("btn") as HTMLButtonElement;
+        btn.textContent = "Loading...";
+        setTimeout(() => {
+          const res = document.getElementById("result");
+          if (res) {
+            res.scrollIntoView({ behavior: "smooth" })
+            btn.textContent = `Loaded ${this.cat}`
+          }
+        }, 1000)
 
         if (category === "album") {
           const response = await axios.get(`/api/info?type=${category}&id=${ii}`)
@@ -147,18 +163,25 @@ export default {
               }
             }
             this.resultsArray.push({ name, artists: `by${songArtists}`, /*imageSource: image[1].url,*/ id, duration_ms, category: "track" })
-            const btn = document.getElementById("btn") as HTMLButtonElement;
-            btn.textContent = "Loading...";
-            setTimeout(() => {
-              const res = document.getElementById("result");
-              if (res) {
-                res.scrollIntoView({ behavior: "smooth" })
-                btn.textContent = `Loaded ${this.cat}`
-              }
-            }, 1000)
           }
+          createToast('Album loaded',
+            {
+              timeout: 5000,
+              position: 'top-right',
+              type: 'info',
+              showIcon: true,
+            })
         }
       } catch (err) {
+        createToast({
+          title: "An error occured",
+        },
+            {
+              timeout: 5000,
+              position: 'top-right',
+              type: 'danger',
+              showIcon: true,
+            })
         console.error(err)
       }
     },
@@ -230,6 +253,15 @@ export default {
         anchor.href = URL.createObjectURL(response.data);
         anchor.download = filename.replace(/"/g, '');
         anchor.click();
+        createToast({
+          title: `${name} downloaded`,
+        },
+            {
+              timeout: 5000,
+              position: 'top-right',
+              type: 'info',
+              showIcon: true,
+            })
         URL.revokeObjectURL(anchor.href);
         this.link = "";
         this.isInvalid = undefined;
@@ -237,12 +269,21 @@ export default {
         setTimeout(() => {
           for (const button of buttons) {
             if (button.id === "btn") continue;
-          button.disabled = false;
-        }
+            button.disabled = false;
+          }
         }, 2000)
       }
       catch (e) {
         console.error(e);
+        createToast({
+          title: "An error occured",
+        },
+            {
+              timeout: 5000,
+              position: 'top-right',
+              type: 'danger',
+              showIcon: true,
+            })
       }
     },
   },
