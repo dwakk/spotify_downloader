@@ -137,7 +137,7 @@ export default {
         const response = await axios.get(`/api/info?type=${category}&id=${id}`)
 
         if (category === "album") {
-          
+
           const { name, image, tracks, total, id, release_date, artists } = response.data as MainInfo;
           if (!artists) throw new Error("No artist")
           if (typeof artists === "string") throw new Error("Invalid artist type")
@@ -186,7 +186,7 @@ export default {
           this.additionalLink = `https://open.spotify.com/playlist/${id}`
           this.mainObj.push({ name, imageSource: image[0].url, total: `Total: ${total} tracks`, category, id, artist: `by ${author}`, folder: "zip" })
           for (const track of tracks.items) {
-            const t = track as {track: Track}
+            const t = track as { track: Track }
             const { name, artists, id, duration_ms, imageSource } = t.track
             if (typeof artists === "string") throw new Error
             let songArtists: string = "";
@@ -213,18 +213,52 @@ export default {
             })
         }
         else if (category === "track") {
-          const {artists} = response.data as MainInfo
+          const { artists, id, name, duration_ms, image } = response.data as Track
+          console.dir(response.data)
+          if (typeof artists === "string") throw new Error
+          this.objInfo.name = name
+          this.objInfo.artists = artists[0].name
+          this.objInfo.by = "by"
+          this.objInfo.spotify = `View the track on Spotify`;
+          this.additionalLink = `https://open.spotify.com/track/${id}`
+          let songArtists: string = "";
+          if (artists.length < 1) throw new Error(`No artist for track ${name}`)
+          else if (artists.length === 1) {
+            songArtists += ` ${artists[0].name}`
+          } else if (artists.length > 1) {
+            for (let i = 0; i < artists.length; i++) {
+              if (i === artists.length - 1) {
+                songArtists += ` and ${artists[i].name}`
+              } else {
+                songArtists += ` ${artists[i].name}`
+              }
+            }
+          }
+          let img;
+          if (!image) {
+            createToast("Song's image not found", {
+              timeout: 5000,
+              position: "top-right",
+              type: "warning",
+              showIcon: true,
+            })
+            img = null
+          } else {
+            img = image[1].url
+          }
+
+          this.resultsArray.push({ name, artists: `by${songArtists}`, imageSource: img, id, duration_ms, category: "track" })
         }
       } catch (err) {
         createToast({
           title: "An error occured",
         },
-            {
-              timeout: 5000,
-              position: 'top-right',
-              type: 'danger',
-              showIcon: true,
-            })
+          {
+            timeout: 5000,
+            position: 'top-right',
+            type: 'danger',
+            showIcon: true,
+          })
         console.error(err)
       }
     },
@@ -299,12 +333,12 @@ export default {
         createToast({
           title: `${name} downloaded`,
         },
-            {
-              timeout: 5000,
-              position: 'top-right',
-              type: 'info',
-              showIcon: true,
-            })
+          {
+            timeout: 5000,
+            position: 'top-right',
+            type: 'info',
+            showIcon: true,
+          })
         URL.revokeObjectURL(anchor.href);
         this.link = "";
         this.isInvalid = undefined;
@@ -321,12 +355,12 @@ export default {
         createToast({
           title: "An error occured",
         },
-            {
-              timeout: 5000,
-              position: 'top-right',
-              type: 'danger',
-              showIcon: true,
-            })
+          {
+            timeout: 5000,
+            position: 'top-right',
+            type: 'danger',
+            showIcon: true,
+          })
       }
     },
   },
