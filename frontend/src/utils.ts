@@ -76,32 +76,42 @@ export interface PlaylistContent {
 }
 */
 
-export interface AlbumContent {
-  name: string;
-  image: Image[];
-  artists: {name: string}[];
-  tracks: {
-    items: AlbumTrack[];
-  };
-  release_date?: string;
-  total: number;
-  id: string;
-}
-
-export interface AlbumTrack {
+export interface Track {
   name: string;
   artists: {name: string}[] |string;
-  //imageSource: string;
+  imageSource: string | null;
   id: string;
-  category: "track" | "album" | "playlist";
   duration_ms: number;
+  category: "track" | "playlist" | "album";
 }
 
-export interface AlbumInfo {
-  name: string;
-  artist: string;
+export interface MainInfo {
+  image: Image[]
+  name: string
+  artists?: {name: string}[] | string;
   total: string;
-  release_date: string;
+  release_date?: string;
   spotify: string;
-  by: "by"
+  by: "by";
+  author?: string
+  tracks: {
+    items: Track[]
+  } | {
+    items: Array<
+      {
+        track: Track
+      }
+    >
+  }
+  id: string
+}
+
+export interface PlaylistContent {
+  name: string;
+  image: Image[];
+  owner: string;
+  tracks: Track[]
+  release_date?: string;
+  total?: number;
+  id: string;
 }

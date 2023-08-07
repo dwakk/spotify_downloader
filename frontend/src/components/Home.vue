@@ -33,7 +33,7 @@
 import Result from './Result.vue';
 import Info from './Info.vue';
 import axios from 'axios';
-import { decodeString, getSpotifyId, timeConversion, type MainObject, type Image, type AlbumContent, type AlbumTrack, type AlbumInfo } from '@/utils';
+import { decodeString, getSpotifyId, timeConversion, type PlaylistContent, type MainInfo, type MainObject, type Image, type Track } from '@/utils';
 import { createToast } from "mosha-vue-toastify"
 import "mosha-vue-toastify/dist/style.css"
 
@@ -48,8 +48,8 @@ export default {
       link: '',
       isInvalid: undefined as boolean | undefined,
       mainObj: [] as MainObject[],
-      resultsArray: [] as AlbumTrack[],
-      objInfo: {} as AlbumInfo,
+      resultsArray: [] as Track[],
+      objInfo: {} as MainInfo,
       additionalLink: undefined as string | undefined,
       isDownloading: false
     };
@@ -117,11 +117,11 @@ export default {
       try {
         this.mainObj = [];
         this.resultsArray = [];
-        this.objInfo = {} as AlbumInfo;
+        this.objInfo = {} as MainInfo;
         this.additionalLink = undefined
         const category = this.getCategory()
-        const ii = getSpotifyId(this.link)
-        if (!ii) throw new Error("No id found")
+        const id = getSpotifyId(this.link)
+        if (!id) throw new Error("No id found")
         axios.defaults.baseURL = import.meta.env.VITE_APP_API_URL
 
         const btn = document.getElementById("btn") as HTMLButtonElement;
@@ -132,22 +132,27 @@ export default {
             res.scrollIntoView({ behavior: "smooth" })
             btn.textContent = `Loaded ${this.cat}`
           }
-        }, 1000)
+        }, 1500)
+
+        const response = await axios.get(`/api/info?type=${category}&id=${id}`)
 
         if (category === "album") {
-          const response = await axios.get(`/api/info?type=${category}&id=${ii}`)
-          const { name, image, tracks, total, id, release_date, artists } = response.data as AlbumContent;
+          
+          const { name, image, tracks, total, id, release_date, artists } = response.data as MainInfo;
+          if (!artists) throw new Error("No artist")
+          if (typeof artists === "string") throw new Error("Invalid artist type")
           if (!release_date) throw new Error("no release date")
           this.objInfo.name = name;
-          this.objInfo.artist = artists[0].name
+          this.objInfo.artists = artists[0].name
           this.objInfo.by = "by"
           this.objInfo.release_date = `Released on ${new Date(release_date).toLocaleDateString("fr")}`
           this.objInfo.total = `Total tracks: ${total}`
           this.objInfo.spotify = `View the album on Spotify`;
-          this.additionalLink = `https://open.spotify.com/album/${ii}`
-          this.mainObj.push({ name, imageSource: image[1].url, total: `Total: ${total} tracks`, category, id, artist: `by ${""}`, folder: "zip" })
+          this.additionalLink = `https://open.spotify.com/album/${id}`
+          console.log(this.objInfo)
+          this.mainObj.push({ name, imageSource: image[1].url, total: `Total: ${total} tracks`, category, id, artist: `by ${artists[0].name}`, folder: "zip" })
           for (const track of tracks.items) {
-            const { name, artists, id, duration_ms } = track
+            const { name, artists, id, duration_ms } = track as Track
             if (typeof artists === "string") throw new Error
             let songArtists: string = "";
             if (artists.length < 1) throw new Error(`No artist for track ${name}`)
@@ -162,7 +167,7 @@ export default {
                 }
               }
             }
-            this.resultsArray.push({ name, artists: `by${songArtists}`, /*imageSource: image[1].url,*/ id, duration_ms, category: "track" })
+            this.resultsArray.push({ name, artists: `by${songArtists}`, imageSource: null, id, duration_ms, category: "track" })
           }
           createToast('Album loaded',
             {
@@ -171,6 +176,44 @@ export default {
               type: 'info',
               showIcon: true,
             })
+        } else if (category === "playlist") {
+          const { name, image, tracks, total, id, release_date, author } = response.data as MainInfo;
+          this.objInfo.name = name;
+          this.objInfo.author = author
+          this.objInfo.by = "by"
+          this.objInfo.total = `Total tracks: ${total}`
+          this.objInfo.spotify = `View the playlist on Spotify`;
+          this.additionalLink = `https://open.spotify.com/playlist/${id}`
+          this.mainObj.push({ name, imageSource: image[0].url, total: `Total: ${total} tracks`, category, id, artist: `by ${author}`, folder: "zip" })
+          for (const track of tracks.items) {
+            const t = track as {track: Track}
+            const { name, artists, id, duration_ms, imageSource } = t.track
+            if (typeof artists === "string") throw new Error
+            let songArtists: string = "";
+            if (artists.length < 1) throw new Error(`No artist for track ${name}`)
+            else if (artists.length === 1) {
+              songArtists += ` ${artists[0].name}`
+            } else if (artists.length > 1) {
+              for (let i = 0; i < artists.length; i++) {
+                if (i === artists.length - 1) {
+                  songArtists += ` and ${artists[i].name}`
+                } else {
+                  songArtists += ` ${artists[i].name}`
+                }
+              }
+            }
+            this.resultsArray.push({ name, artists: `by${songArtists}`, imageSource, id, duration_ms, category: "track" })
+          }
+          createToast('Playlist loaded',
+            {
+              timeout: 5000,
+              position: 'top-right',
+              type: 'info',
+              showIcon: true,
+            })
+        }
+        else if (category === "track") {
+          const {artists} = response.data as MainInfo
         }
       } catch (err) {
         createToast({
