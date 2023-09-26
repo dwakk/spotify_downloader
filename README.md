@@ -2,6 +2,7 @@
 
 ## Installation guide
 
+Install dependencies
 ```
 cd backend
 npm i
